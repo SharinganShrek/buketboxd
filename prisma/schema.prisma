@@ -1,0 +1,334 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ActivityType {
+  rated
+  reviewed
+  logged
+  created_list
+  liked_review
+  followed
+}
+
+enum CommentParentType {
+  review
+  list
+}
+
+enum LikeTargetType {
+  review
+  list
+  comment
+}
+
+enum NotificationType {
+  follow
+  like_review
+  comment
+  like_list
+  mention
+}
+
+model Profile {
+  id                   String   @id @db.Uuid
+  username             String   @unique
+  displayName          String?  @map("display_name")
+  avatarUrl            String?  @map("avatar_url")
+  bio                  String?
+  onboardingCompleted  Boolean  @default(false) @map("onboarding_completed")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  logs            Log[]
+  reviews         Review[]
+  lists           List[]
+  quotes          Quote[]
+  comments        Comment[]
+  likes           Like[]
+  notifications   Notification[]         @relation("NotificationRecipient")
+  actorNotifications Notification[]      @relation("NotificationActor")
+  activities      Activity[]
+  followers       Follow[]               @relation("Following")
+  following       Follow[]               @relation("Follower")
+  logTags         LogTag[]
+
+  @@map("profiles")
+}
+
+model Author {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  slug      String   @unique
+  bio       String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  articles ArticleAuthor[]
+
+  @@map("authors")
+}
+
+model Source {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  slug      String   @unique
+  domain    String?  @unique
+  logoUrl   String?  @map("logo_url")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  articles Article[]
+
+  @@map("sources")
+}
+
+model Article {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug         String    @unique
+  title        String
+  url          String    @unique
+  coverUrl     String?   @map("cover_url")
+  excerpt      String?
+  publishedAt  DateTime? @map("published_at")
+  sourceId     String?   @map("source_id") @db.Uuid
+  avgRating    Decimal   @default(0) @map("avg_rating") @db.Decimal(3, 2)
+  ratingsCount Int       @default(0) @map("ratings_count")
+  logsCount    Int       @default(0) @map("logs_count")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  source   Source?         @relation(fields: [sourceId], references: [id])
+  authors  ArticleAuthor[]
+  logs     Log[]
+  reviews  Review[]
+  listItems ListItem[]
+  quotes   Quote[]
+  tags     ArticleTag[]
+  activities Activity[]
+
+  @@index([createdAt(sort: Desc)])
+  @@index([avgRating(sort: Desc)])
+  @@map("articles")
+}
+
+model ArticleAuthor {
+  articleId String @map("article_id") @db.Uuid
+  authorId  String @map("author_id") @db.Uuid
+  position  Int    @default(0)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  author  Author  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, authorId])
+  @@map("article_authors")
+}
+
+model Log {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  articleId       String    @map("article_id") @db.Uuid
+  readAt          DateTime  @map("read_at") @db.Date
+  rating          Decimal?  @db.Decimal(2, 1)
+  reviewId        String?   @unique @map("review_id") @db.Uuid
+  readingMinutes  Int?      @map("reading_minutes")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user    Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  review  Review?  @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+  tags    LogTag[]
+
+  @@unique([userId, articleId])
+  @@index([userId, readAt(sort: Desc)])
+  @@map("logs")
+}
+
+model Review {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  articleId     String   @map("article_id") @db.Uuid
+  bodyMd        String   @map("body_md")
+  hasSpoilers   Boolean  @default(false) @map("has_spoilers")
+  likesCount    Int      @default(0) @map("likes_count")
+  commentsCount Int      @default(0) @map("comments_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  log     Log?
+
+  @@unique([userId, articleId])
+  @@index([articleId, createdAt(sort: Desc)])
+  @@index([likesCount(sort: Desc)])
+  @@map("reviews")
+}
+
+model Tag {
+  id   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name String
+  slug String @unique
+
+  articles ArticleTag[]
+  logs     LogTag[]
+
+  @@map("tags")
+}
+
+model ArticleTag {
+  articleId String @map("article_id") @db.Uuid
+  tagId     String @map("tag_id") @db.Uuid
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@map("article_tags")
+}
+
+model LogTag {
+  logId  String @map("log_id") @db.Uuid
+  tagId  String @map("tag_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+
+  log  Log     @relation(fields: [logId], references: [id], onDelete: Cascade)
+  tag  Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([logId, tagId])
+  @@map("log_tags")
+}
+
+model List {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  title       String
+  slug        String
+  description String?
+  coverUrl    String?  @map("cover_url")
+  isPublic    Boolean  @default(true) @map("is_public")
+  likesCount  Int      @default(0) @map("likes_count")
+  itemsCount  Int      @default(0) @map("items_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user  Profile    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items ListItem[]
+
+  @@unique([userId, slug])
+  @@map("lists")
+}
+
+model ListItem {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listId    String  @map("list_id") @db.Uuid
+  articleId String  @map("article_id") @db.Uuid
+  position  Int
+  note      String?
+
+  list    List    @relation(fields: [listId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, articleId])
+  @@index([listId, position])
+  @@map("list_items")
+}
+
+model Quote {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  articleId String   @map("article_id") @db.Uuid
+  body      String
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("quotes")
+}
+
+model Comment {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String            @map("user_id") @db.Uuid
+  parentType      CommentParentType @map("parent_type")
+  parentId        String            @map("parent_id") @db.Uuid
+  parentCommentId String?           @map("parent_comment_id") @db.Uuid
+  body            String
+  likesCount      Int               @default(0) @map("likes_count")
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  user          Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentComment Comment?  @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies       Comment[] @relation("CommentReplies")
+
+  @@index([parentType, parentId, createdAt])
+  @@map("comments")
+}
+
+model Like {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  targetType LikeTargetType @map("target_type")
+  targetId   String         @map("target_id") @db.Uuid
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@map("likes")
+}
+
+model Follow {
+  followerId  String   @map("follower_id") @db.Uuid
+  followingId String   @map("following_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  follower  Profile @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following Profile @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+model Notification {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  actorId    String           @map("actor_id") @db.Uuid
+  type       NotificationType
+  entityType String?          @map("entity_type")
+  entityId   String?          @map("entity_id") @db.Uuid
+  readAt     DateTime?        @map("read_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  user  Profile @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor Profile @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model Activity {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId    String       @map("actor_id") @db.Uuid
+  type       ActivityType
+  entityType String       @map("entity_type")
+  entityId   String       @map("entity_id") @db.Uuid
+  articleId  String?      @map("article_id") @db.Uuid
+  meta       Json?
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  actor   Profile  @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  article Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@map("activities")
+}

@@ -1,0 +1,3 @@
+-- Baseline schema applied via Supabase MCP (buketboxd_initial_schema + buketboxd_rls_policies).
+-- Use `prisma db pull` after setting DATABASE_URL to sync, or re-apply SQL from project history.
+-- This file documents the baseline for local Prisma migrate workflows.
