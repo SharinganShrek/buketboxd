@@ -4,30 +4,30 @@ import { LogComposer } from "@/components/log/log-composer";
 import { getCurrentProfile } from "@/server/actions/profile";
 
 export const metadata = {
-  title: "Log a read",
+  title: "New entry",
 };
 
 export default async function NewLogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ url?: string }>;
+  searchParams: Promise<{ work?: string }>;
 }) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/onboarding");
 
-  const { url } = await searchParams;
+  const { work } = await searchParams;
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="font-display text-3xl font-semibold tracking-tight">
-          Log a read
+          New entry
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Paste a URL, add your rating and thoughts, and keep your diary going.
+          Find a work on Open Library, rate it, and write what you thought.
         </p>
       </div>
-      <LogComposer initialUrl={url ?? ""} />
+      <LogComposer initialOlWorkKey={work ?? ""} />
     </div>
   );
 }

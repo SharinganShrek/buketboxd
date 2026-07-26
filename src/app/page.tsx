@@ -28,14 +28,14 @@ export default async function MarketingPage() {
         type,
         created_at,
         actor:profiles!activities_actor_id_fkey ( username, display_name, avatar_url ),
-        article:articles!activities_article_id_fkey ( slug, title )
+        work:works!activities_work_id_fkey ( slug, title )
       `,
       )
       .in("type", ["logged", "rated", "reviewed"])
       .order("created_at", { ascending: false })
       .limit(8),
     supabase
-      .from("articles")
+      .from("works")
       .select("id, slug, title, cover_url, avg_rating, logs_count")
       .order("logs_count", { ascending: false })
       .limit(8),
@@ -48,7 +48,7 @@ export default async function MarketingPage() {
         likes_count,
         created_at,
         user:profiles!reviews_user_id_fkey ( username, display_name, avatar_url ),
-        article:articles!reviews_article_id_fkey ( slug, title )
+        work:works!reviews_work_id_fkey ( slug, title )
       `,
       )
       .order("likes_count", { ascending: false })
@@ -96,13 +96,13 @@ export default async function MarketingPage() {
           </FadeIn>
           <FadeIn delay={0.08}>
             <h1 className="mt-6 max-w-2xl font-display text-2xl leading-snug text-foreground/90 sm:text-3xl">
-              Your diary for everything you read.
+              Your diary for the works you read.
             </h1>
           </FadeIn>
           <FadeIn delay={0.16}>
             <p className="mt-4 max-w-lg text-base text-muted-foreground sm:text-lg">
-              Track essays, newsletters, and long-form pieces. Rate them, review
-              them, and see what fellow readers are into.
+              Find books on Open Library, rate them out of 10, write what stayed
+              with you, and follow fellow readers.
             </p>
           </FadeIn>
           <FadeIn delay={0.24}>
@@ -145,9 +145,9 @@ export default async function MarketingPage() {
                   const actor = Array.isArray(item.actor)
                     ? item.actor[0]
                     : item.actor;
-                  const article = Array.isArray(item.article)
-                    ? item.article[0]
-                    : item.article;
+                  const work = Array.isArray(item.work)
+                    ? item.work[0]
+                    : item.work;
                   return (
                     <li
                       key={item.id}
@@ -157,14 +157,14 @@ export default async function MarketingPage() {
                         {actor?.display_name || actor?.username || "Someone"}
                       </span>{" "}
                       {item.type}
-                      {article ? (
+                      {work ? (
                         <>
                           {" "}
                           <Link
-                            href={`/article/${article.slug}`}
+                            href={`/work/${work.slug}`}
                             className="text-accent hover:underline"
                           >
-                            {article.title}
+                            {work.title}
                           </Link>
                         </>
                       ) : null}
@@ -179,10 +179,10 @@ export default async function MarketingPage() {
         <FadeIn>
           <section>
             <h2 className="font-display text-2xl font-semibold tracking-tight">
-              Trending articles
+              Trending works
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Most logged pieces right now.
+              Most logged works right now.
             </p>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {(trending ?? []).length === 0 ? (
@@ -190,16 +190,16 @@ export default async function MarketingPage() {
                   Nothing trending yet.
                 </p>
               ) : (
-                (trending ?? []).map((article) => (
+                (trending ?? []).map((work) => (
                   <Link
-                    key={article.id}
-                    href={`/article/${article.slug}`}
+                    key={work.id}
+                    href={`/work/${work.slug}`}
                     className="group overflow-hidden rounded-xl border border-border bg-surface/50 transition-colors hover:border-accent/40"
                   >
-                    <div className="relative aspect-[16/10] bg-muted">
-                      {article.cover_url ? (
+                    <div className="relative aspect-[2/3] bg-muted">
+                      {work.cover_url ? (
                         <Image
-                          src={article.cover_url}
+                          src={work.cover_url}
                           alt=""
                           fill
                           className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
@@ -210,11 +210,10 @@ export default async function MarketingPage() {
                     </div>
                     <div className="p-3">
                       <p className="line-clamp-2 text-sm font-medium">
-                        {article.title}
+                        {work.title}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {formatRating(article.avg_rating)} · {article.logs_count}{" "}
-                        logs
+                        {formatRating(work.avg_rating)} · {work.logs_count} logs
                       </p>
                     </div>
                   </Link>
@@ -227,24 +226,24 @@ export default async function MarketingPage() {
         <FadeIn>
           <section>
             <h2 className="font-display text-2xl font-semibold tracking-tight">
-              Popular reviews
+              Popular entries
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Reviews the community is loving.
+              Entries the community is loving.
             </p>
             <ul className="mt-6 space-y-4">
               {(popularReviews ?? []).length === 0 ? (
                 <li className="text-sm text-muted-foreground">
-                  No reviews yet.
+                  No entries yet.
                 </li>
               ) : (
                 (popularReviews ?? []).map((review) => {
                   const user = Array.isArray(review.user)
                     ? review.user[0]
                     : review.user;
-                  const article = Array.isArray(review.article)
-                    ? review.article[0]
-                    : review.article;
+                  const work = Array.isArray(review.work)
+                    ? review.work[0]
+                    : review.work;
                   return (
                     <li
                       key={review.id}
@@ -259,15 +258,15 @@ export default async function MarketingPage() {
                         >
                           {user?.display_name || user?.username || "Reader"}
                         </Link>
-                        {article ? (
+                        {work ? (
                           <>
                             {" "}
                             on{" "}
                             <Link
-                              href={`/article/${article.slug}`}
+                              href={`/work/${work.slug}`}
                               className="text-accent hover:underline"
                             >
-                              {article.title}
+                              {work.title}
                             </Link>
                           </>
                         ) : null}
@@ -279,7 +278,7 @@ export default async function MarketingPage() {
                         href={`/review/${review.id}`}
                         className="mt-2 inline-block text-xs text-accent hover:underline"
                       >
-                        Read full review · {review.likes_count} likes
+                        Read full entry · {review.likes_count} likes
                       </Link>
                     </li>
                   );

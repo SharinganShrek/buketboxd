@@ -61,88 +61,75 @@ model Profile {
 }
 
 model Author {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  slug      String   @unique
-  bio       String?
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  slug        String   @unique
+  bio         String?
+  olAuthorKey String?  @unique @map("ol_author_key")
+  photoUrl    String?  @map("photo_url")
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  articles ArticleAuthor[]
+  works WorkAuthor[]
 
   @@map("authors")
 }
 
-model Source {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  slug      String   @unique
-  domain    String?  @unique
-  logoUrl   String?  @map("logo_url")
-  createdAt DateTime @default(now()) @map("created_at")
+model Work {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  olWorkKey        String    @unique @map("ol_work_key")
+  slug             String    @unique
+  title            String
+  coverUrl         String?   @map("cover_url")
+  description      String?
+  firstPublishYear Int?      @map("first_publish_year")
+  avgRating        Decimal   @default(0) @map("avg_rating") @db.Decimal(4, 2)
+  ratingsCount     Int       @default(0) @map("ratings_count")
+  logsCount        Int       @default(0) @map("logs_count")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  articles Article[]
-
-  @@map("sources")
-}
-
-model Article {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug         String    @unique
-  title        String
-  url          String    @unique
-  coverUrl     String?   @map("cover_url")
-  excerpt      String?
-  publishedAt  DateTime? @map("published_at")
-  sourceId     String?   @map("source_id") @db.Uuid
-  avgRating    Decimal   @default(0) @map("avg_rating") @db.Decimal(3, 2)
-  ratingsCount Int       @default(0) @map("ratings_count")
-  logsCount    Int       @default(0) @map("logs_count")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-
-  source   Source?         @relation(fields: [sourceId], references: [id])
-  authors  ArticleAuthor[]
-  logs     Log[]
-  reviews  Review[]
+  authors   WorkAuthor[]
+  logs      Log[]
+  reviews   Review[]
   listItems ListItem[]
-  quotes   Quote[]
-  tags     ArticleTag[]
+  quotes    Quote[]
   activities Activity[]
 
   @@index([createdAt(sort: Desc)])
   @@index([avgRating(sort: Desc)])
-  @@map("articles")
+  @@map("works")
 }
 
-model ArticleAuthor {
-  articleId String @map("article_id") @db.Uuid
-  authorId  String @map("author_id") @db.Uuid
-  position  Int    @default(0)
+model WorkAuthor {
+  workId   String @map("work_id") @db.Uuid
+  authorId String @map("author_id") @db.Uuid
+  position Int    @default(0)
 
-  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  author  Author  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  work   Work   @relation(fields: [workId], references: [id], onDelete: Cascade)
+  author Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  @@id([articleId, authorId])
-  @@map("article_authors")
+  @@id([workId, authorId])
+  @@map("work_authors")
 }
 
 model Log {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId          String    @map("user_id") @db.Uuid
-  articleId       String    @map("article_id") @db.Uuid
+  workId          String    @map("work_id") @db.Uuid
   readAt          DateTime  @map("read_at") @db.Date
-  rating          Decimal?  @db.Decimal(2, 1)
+  rating          Decimal?  @db.Decimal(3, 1)
   reviewId        String?   @unique @map("review_id") @db.Uuid
   readingMinutes  Int?      @map("reading_minutes")
+  title           String?
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  user    Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  article Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  review  Review?  @relation(fields: [reviewId], references: [id], onDelete: SetNull)
-  tags    LogTag[]
+  user   Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work   Work    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  review Review? @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+  tags   LogTag[]
 
-  @@unique([userId, articleId])
+  @@unique([userId, workId])
   @@index([userId, readAt(sort: Desc)])
   @@map("logs")
 }
@@ -150,7 +137,8 @@ model Log {
 model Review {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId        String   @map("user_id") @db.Uuid
-  articleId     String   @map("article_id") @db.Uuid
+  workId        String   @map("work_id") @db.Uuid
+  title         String?
   bodyMd        String   @map("body_md")
   hasSpoilers   Boolean  @default(false) @map("has_spoilers")
   likesCount    Int      @default(0) @map("likes_count")
@@ -158,12 +146,12 @@ model Review {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
-  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  log     Log?
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work Work    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  log  Log?
 
-  @@unique([userId, articleId])
-  @@index([articleId, createdAt(sort: Desc)])
+  @@unique([userId, workId])
+  @@index([workId, createdAt(sort: Desc)])
   @@index([likesCount(sort: Desc)])
   @@map("reviews")
 }
@@ -173,21 +161,9 @@ model Tag {
   name String
   slug String @unique
 
-  articles ArticleTag[]
-  logs     LogTag[]
+  logs LogTag[]
 
   @@map("tags")
-}
-
-model ArticleTag {
-  articleId String @map("article_id") @db.Uuid
-  tagId     String @map("tag_id") @db.Uuid
-
-  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@id([articleId, tagId])
-  @@map("article_tags")
 }
 
 model LogTag {
@@ -224,16 +200,16 @@ model List {
 }
 
 model ListItem {
-  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  listId    String  @map("list_id") @db.Uuid
-  articleId String  @map("article_id") @db.Uuid
-  position  Int
-  note      String?
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listId   String  @map("list_id") @db.Uuid
+  workId   String  @map("work_id") @db.Uuid
+  position Int
+  note     String?
 
-  list    List    @relation(fields: [listId], references: [id], onDelete: Cascade)
-  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  list List @relation(fields: [listId], references: [id], onDelete: Cascade)
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
 
-  @@unique([listId, articleId])
+  @@unique([listId, workId])
   @@index([listId, position])
   @@map("list_items")
 }
@@ -241,13 +217,13 @@ model ListItem {
 model Quote {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String   @map("user_id") @db.Uuid
-  articleId String   @map("article_id") @db.Uuid
+  workId    String   @map("work_id") @db.Uuid
   body      String
   note      String?
   createdAt DateTime @default(now()) @map("created_at")
 
-  user    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
-  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work Work    @relation(fields: [workId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("quotes")
@@ -321,12 +297,12 @@ model Activity {
   type       ActivityType
   entityType String       @map("entity_type")
   entityId   String       @map("entity_id") @db.Uuid
-  articleId  String?      @map("article_id") @db.Uuid
+  workId     String?      @map("work_id") @db.Uuid
   meta       Json?
   createdAt  DateTime     @default(now()) @map("created_at")
 
-  actor   Profile  @relation(fields: [actorId], references: [id], onDelete: Cascade)
-  article Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  actor Profile @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  work  Work?   @relation(fields: [workId], references: [id], onDelete: SetNull)
 
   @@index([createdAt(sort: Desc)])
   @@index([actorId, createdAt(sort: Desc)])

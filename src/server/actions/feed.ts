@@ -2,22 +2,22 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/server/auth/session";
-import type { ActivityType, Article, Profile } from "@/types/database";
+import type { ActivityType, Profile, Work } from "@/types/database";
 
 export type FeedActivity = {
   id: string;
   type: ActivityType;
   entity_type: string;
   entity_id: string;
-  article_id: string | null;
+  work_id: string | null;
   meta: Record<string, unknown> | null;
   created_at: string;
   actor: Pick<
     Profile,
     "id" | "username" | "display_name" | "avatar_url"
   > | null;
-  article: Pick<
-    Article,
+  work: Pick<
+    Work,
     "id" | "slug" | "title" | "cover_url" | "avg_rating" | "logs_count"
   > | null;
 };
@@ -53,7 +53,7 @@ export async function getHomeFeed({
       type,
       entity_type,
       entity_id,
-      article_id,
+      work_id,
       meta,
       created_at,
       actor:profiles!activities_actor_id_fkey (
@@ -62,7 +62,7 @@ export async function getHomeFeed({
         display_name,
         avatar_url
       ),
-      article:articles!activities_article_id_fkey (
+      work:works!activities_work_id_fkey (
         id,
         slug,
         title,
@@ -96,13 +96,11 @@ export async function getHomeFeed({
     type: row.type,
     entity_type: row.entity_type,
     entity_id: row.entity_id,
-    article_id: row.article_id,
+    work_id: row.work_id,
     meta: (row.meta as Record<string, unknown> | null) ?? null,
     created_at: row.created_at,
     actor: Array.isArray(row.actor) ? row.actor[0] ?? null : row.actor,
-    article: Array.isArray(row.article)
-      ? row.article[0] ?? null
-      : row.article,
+    work: Array.isArray(row.work) ? row.work[0] ?? null : row.work,
   }));
 
   return {

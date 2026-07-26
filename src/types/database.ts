@@ -65,6 +65,8 @@ export type Database = {
           name: string;
           slug: string;
           bio: string | null;
+          ol_author_key: string | null;
+          photo_url: string | null;
           created_at: string;
         };
         Insert: {
@@ -72,6 +74,8 @@ export type Database = {
           name: string;
           slug: string;
           bio?: string | null;
+          ol_author_key?: string | null;
+          photo_url?: string | null;
           created_at?: string;
         };
         Update: {
@@ -79,9 +83,89 @@ export type Database = {
           name?: string;
           slug?: string;
           bio?: string | null;
+          ol_author_key?: string | null;
+          photo_url?: string | null;
           created_at?: string;
         };
         Relationships: [];
+      };
+      works: {
+        Row: {
+          id: string;
+          ol_work_key: string;
+          slug: string;
+          title: string;
+          cover_url: string | null;
+          description: string | null;
+          first_publish_year: number | null;
+          avg_rating: number | string;
+          ratings_count: number;
+          logs_count: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          ol_work_key: string;
+          slug: string;
+          title: string;
+          cover_url?: string | null;
+          description?: string | null;
+          first_publish_year?: number | null;
+          avg_rating?: number | string;
+          ratings_count?: number;
+          logs_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          ol_work_key?: string;
+          slug?: string;
+          title?: string;
+          cover_url?: string | null;
+          description?: string | null;
+          first_publish_year?: number | null;
+          avg_rating?: number | string;
+          ratings_count?: number;
+          logs_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      work_authors: {
+        Row: {
+          work_id: string;
+          author_id: string;
+          position: number;
+        };
+        Insert: {
+          work_id: string;
+          author_id: string;
+          position?: number;
+        };
+        Update: {
+          work_id?: string;
+          author_id?: string;
+          position?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "work_authors_work_id_fkey";
+            columns: ["work_id"];
+            isOneToOne: false;
+            referencedRelation: "works";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "work_authors_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "authors";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       sources: {
         Row: {
@@ -203,33 +287,36 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          article_id: string;
+          work_id: string;
           read_at: string;
           rating: number | string | null;
           review_id: string | null;
           reading_minutes: number | null;
+          title: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           user_id: string;
-          article_id: string;
+          work_id: string;
           read_at: string;
           rating?: number | string | null;
           review_id?: string | null;
           reading_minutes?: number | null;
+          title?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           user_id?: string;
-          article_id?: string;
+          work_id?: string;
           read_at?: string;
           rating?: number | string | null;
           review_id?: string | null;
           reading_minutes?: number | null;
+          title?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -242,10 +329,10 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "logs_article_id_fkey";
-            columns: ["article_id"];
+            foreignKeyName: "logs_work_id_fkey";
+            columns: ["work_id"];
             isOneToOne: false;
-            referencedRelation: "articles";
+            referencedRelation: "works";
             referencedColumns: ["id"];
           },
           {
@@ -261,7 +348,8 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          article_id: string;
+          work_id: string;
+          title: string | null;
           body_md: string;
           has_spoilers: boolean;
           likes_count: number;
@@ -272,7 +360,8 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
-          article_id: string;
+          work_id: string;
+          title?: string | null;
           body_md: string;
           has_spoilers?: boolean;
           likes_count?: number;
@@ -283,7 +372,8 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string;
-          article_id?: string;
+          work_id?: string;
+          title?: string | null;
           body_md?: string;
           has_spoilers?: boolean;
           likes_count?: number;
@@ -300,10 +390,10 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "reviews_article_id_fkey";
-            columns: ["article_id"];
+            foreignKeyName: "reviews_work_id_fkey";
+            columns: ["work_id"];
             isOneToOne: false;
-            referencedRelation: "articles";
+            referencedRelation: "works";
             referencedColumns: ["id"];
           },
         ];
@@ -405,21 +495,21 @@ export type Database = {
         Row: {
           id: string;
           list_id: string;
-          article_id: string;
+          work_id: string;
           position: number;
           note: string | null;
         };
         Insert: {
           id?: string;
           list_id: string;
-          article_id: string;
+          work_id: string;
           position: number;
           note?: string | null;
         };
         Update: {
           id?: string;
           list_id?: string;
-          article_id?: string;
+          work_id?: string;
           position?: number;
           note?: string | null;
         };
@@ -429,7 +519,7 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
-          article_id: string;
+          work_id: string;
           body: string;
           note: string | null;
           created_at: string;
@@ -437,7 +527,7 @@ export type Database = {
         Insert: {
           id?: string;
           user_id: string;
-          article_id: string;
+          work_id: string;
           body: string;
           note?: string | null;
           created_at?: string;
@@ -445,7 +535,7 @@ export type Database = {
         Update: {
           id?: string;
           user_id?: string;
-          article_id?: string;
+          work_id?: string;
           body?: string;
           note?: string | null;
           created_at?: string;
@@ -582,7 +672,7 @@ export type Database = {
           type: ActivityType;
           entity_type: string;
           entity_id: string;
-          article_id: string | null;
+          work_id: string | null;
           meta: Json | null;
           created_at: string;
         };
@@ -592,7 +682,7 @@ export type Database = {
           type: ActivityType;
           entity_type: string;
           entity_id: string;
-          article_id?: string | null;
+          work_id?: string | null;
           meta?: Json | null;
           created_at?: string;
         };
@@ -602,7 +692,7 @@ export type Database = {
           type?: ActivityType;
           entity_type?: string;
           entity_id?: string;
-          article_id?: string | null;
+          work_id?: string | null;
           meta?: Json | null;
           created_at?: string;
         };
@@ -615,10 +705,10 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "activities_article_id_fkey";
-            columns: ["article_id"];
+            foreignKeyName: "activities_work_id_fkey";
+            columns: ["work_id"];
             isOneToOne: false;
-            referencedRelation: "articles";
+            referencedRelation: "works";
             referencedColumns: ["id"];
           },
         ];
@@ -641,6 +731,8 @@ export type Tables<T extends keyof Database["public"]["Tables"]> =
 
 export type Profile = Tables<"profiles">;
 export type Article = Tables<"articles">;
+export type Work = Tables<"works">;
+export type Author = Tables<"authors">;
 export type Review = Tables<"reviews">;
 export type Log = Tables<"logs">;
 export type Activity = Tables<"activities">;

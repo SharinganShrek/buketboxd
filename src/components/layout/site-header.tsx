@@ -204,7 +204,7 @@ export function SiteHeader({
                 <DropdownMenuItem asChild>
                   <Link href="/log/new">
                     <BookOpen />
-                    Log a read
+                    New entry
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

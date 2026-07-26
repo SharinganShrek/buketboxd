@@ -2,11 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { ReviewCard } from "@/components/article/review-card";
-import { StarRating } from "@/components/common/star-rating";
+import { ScoreRating } from "@/components/common/score-rating";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { ProfileHeader } from "@/components/profile/profile-header";
+import { EntryCard } from "@/components/work/entry-card";
 import { createClient } from "@/lib/supabase/server";
 import { formatRating } from "@/lib/utils";
 import { getCurrentProfile } from "@/server/actions/profile";
@@ -71,7 +71,7 @@ export default async function ProfilePage({
         id,
         rating,
         read_at,
-        article:articles!logs_article_id_fkey (
+        work:works!logs_work_id_fkey (
           slug,
           title,
           cover_url,
@@ -87,11 +87,11 @@ export default async function ProfilePage({
       .select(
         `
         id,
+        title,
         body_md,
-        has_spoilers,
         likes_count,
         created_at,
-        article:articles!reviews_article_id_fkey ( slug, title ),
+        work:works!reviews_work_id_fkey ( slug, title ),
         log:logs!logs_review_id_fkey ( rating )
       `,
       )
@@ -143,26 +143,22 @@ export default async function ProfilePage({
             Recent logs
           </h2>
           {(recentLogs ?? []).length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">
-              No logs yet.
-            </p>
+            <p className="mt-3 text-sm text-muted-foreground">No logs yet.</p>
           ) : (
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {(recentLogs ?? []).map((log) => {
-                const article = Array.isArray(log.article)
-                  ? log.article[0]
-                  : log.article;
-                if (!article) return null;
+                const work = Array.isArray(log.work) ? log.work[0] : log.work;
+                if (!work) return null;
                 return (
                   <Link
                     key={log.id}
-                    href={`/article/${article.slug}`}
+                    href={`/work/${work.slug}`}
                     className="overflow-hidden rounded-xl border border-border bg-surface/40 transition-colors hover:border-accent/40"
                   >
-                    <div className="relative aspect-[16/10] bg-muted">
-                      {article.cover_url ? (
+                    <div className="relative aspect-[2/3] bg-muted">
+                      {work.cover_url ? (
                         <Image
-                          src={article.cover_url}
+                          src={work.cover_url}
                           alt=""
                           fill
                           className="object-cover"
@@ -173,14 +169,15 @@ export default async function ProfilePage({
                     </div>
                     <div className="p-3">
                       <p className="line-clamp-2 text-sm font-medium">
-                        {article.title}
+                        {work.title}
                       </p>
                       <div className="mt-2 flex items-center justify-between gap-2">
                         {log.rating ? (
-                          <StarRating
+                          <ScoreRating
                             value={Number(log.rating)}
                             readOnly
                             size="sm"
+                            showValue
                           />
                         ) : (
                           <span className="text-xs text-muted-foreground">
@@ -188,7 +185,7 @@ export default async function ProfilePage({
                           </span>
                         )}
                         <span className="text-xs text-muted-foreground">
-                          {formatRating(article.avg_rating)} avg
+                          {formatRating(work.avg_rating)} avg
                         </span>
                       </div>
                     </div>
@@ -201,27 +198,27 @@ export default async function ProfilePage({
 
         <section>
           <h2 className="font-display text-xl font-semibold tracking-tight">
-            Recent reviews
+            Recent entries
           </h2>
           {(recentReviews ?? []).length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">
-              No reviews yet.
+              No entries yet.
             </p>
           ) : (
             <div className="mt-2">
               {(recentReviews ?? []).map((review) => {
-                const article = Array.isArray(review.article)
-                  ? review.article[0]
-                  : review.article;
+                const work = Array.isArray(review.work)
+                  ? review.work[0]
+                  : review.work;
                 const log = Array.isArray(review.log)
                   ? review.log[0]
                   : review.log;
                 return (
-                  <ReviewCard
+                  <EntryCard
                     key={review.id}
                     id={review.id}
+                    title={review.title}
                     bodyMd={review.body_md}
-                    hasSpoilers={review.has_spoilers}
                     createdAt={review.created_at}
                     likesCount={review.likes_count}
                     rating={log?.rating}
@@ -230,9 +227,9 @@ export default async function ProfilePage({
                       display_name: profile.display_name,
                       avatar_url: profile.avatar_url,
                     }}
-                    articleTitle={article?.title}
-                    articleSlug={article?.slug}
-                    showArticleLink
+                    workTitle={work?.title}
+                    workSlug={work?.slug}
+                    showWorkLink
                   />
                 );
               })}

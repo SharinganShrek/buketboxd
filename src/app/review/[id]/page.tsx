@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { ReviewCard } from "@/components/article/review-card";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { EntryCard } from "@/components/work/entry-card";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/server/actions/profile";
 
@@ -18,22 +18,22 @@ export async function generateMetadata({
     .from("reviews")
     .select(
       `
-      article:articles!reviews_article_id_fkey ( title ),
+      title,
+      work:works!reviews_work_id_fkey ( title ),
       user:profiles!reviews_user_id_fkey ( username )
     `,
     )
     .eq("id", id)
     .maybeSingle();
 
-  const article = Array.isArray(data?.article)
-    ? data?.article[0]
-    : data?.article;
+  const work = Array.isArray(data?.work) ? data?.work[0] : data?.work;
   const user = Array.isArray(data?.user) ? data?.user[0] : data?.user;
+  const headline = data?.title || work?.title;
 
   return {
-    title: article?.title
-      ? `Review of ${article.title}${user ? ` by @${user.username}` : ""}`
-      : "Review",
+    title: headline
+      ? `${headline}${user ? ` by @${user.username}` : ""}`
+      : "Entry",
   };
 }
 
@@ -51,12 +51,12 @@ export default async function ReviewPage({
     .select(
       `
       id,
+      title,
       body_md,
-      has_spoilers,
       likes_count,
       created_at,
       user:profiles!reviews_user_id_fkey ( username, display_name, avatar_url ),
-      article:articles!reviews_article_id_fkey ( slug, title ),
+      work:works!reviews_work_id_fkey ( slug, title ),
       log:logs!logs_review_id_fkey ( rating )
     `,
     )
@@ -66,9 +66,7 @@ export default async function ReviewPage({
   if (!review) notFound();
 
   const user = Array.isArray(review.user) ? review.user[0] : review.user;
-  const article = Array.isArray(review.article)
-    ? review.article[0]
-    : review.article;
+  const work = Array.isArray(review.work) ? review.work[0] : review.work;
   const log = Array.isArray(review.log) ? review.log[0] : review.log;
 
   if (!user) notFound();
@@ -88,28 +86,28 @@ export default async function ReviewPage({
       />
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
-        {article ? (
+        {work ? (
           <p className="mb-6 text-sm text-muted-foreground">
-            Review of{" "}
+            Entry on{" "}
             <Link
-              href={`/article/${article.slug}`}
+              href={`/work/${work.slug}`}
               className="font-medium text-foreground hover:text-accent"
             >
-              {article.title}
+              {work.title}
             </Link>
           </p>
         ) : null}
 
-        <ReviewCard
+        <EntryCard
           id={review.id}
+          title={review.title}
           bodyMd={review.body_md}
-          hasSpoilers={review.has_spoilers}
           createdAt={review.created_at}
           likesCount={review.likes_count}
           rating={log?.rating}
           author={user}
-          articleTitle={article?.title}
-          articleSlug={article?.slug}
+          workTitle={work?.title}
+          workSlug={work?.slug}
         />
       </main>
 

@@ -1,31 +1,32 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
 
-import { StarRating } from "@/components/common/star-rating";
+import { ScoreRating } from "@/components/common/score-rating";
 import { Button } from "@/components/ui/button";
 import { formatRating } from "@/lib/utils";
 
-export function ArticleHero({
+export function WorkHero({
   title,
   slug,
-  url,
+  olWorkKey,
   coverUrl,
+  description,
   avgRating,
   ratingsCount,
   logsCount,
-  sourceName,
+  firstPublishYear,
   authors,
 }: {
   title: string;
   slug: string;
-  url: string;
+  olWorkKey: string;
   coverUrl: string | null;
+  description: string | null;
   avgRating: number | string;
   ratingsCount: number;
   logsCount: number;
-  sourceName?: string | null;
-  authors?: string[];
+  firstPublishYear?: number | null;
+  authors?: { name: string; slug: string }[];
 }) {
   return (
     <section className="relative overflow-hidden rounded-2xl border border-border bg-surface">
@@ -47,7 +48,7 @@ export function ArticleHero({
       </div>
 
       <div className="relative grid gap-8 p-6 sm:p-10 md:grid-cols-[160px_1fr]">
-        <div className="relative mx-auto aspect-[3/4] w-36 overflow-hidden rounded-lg border border-border bg-muted shadow-lg sm:w-40">
+        <div className="relative mx-auto aspect-[2/3] w-36 overflow-hidden rounded-lg border border-border bg-muted shadow-lg sm:w-40">
           {coverUrl ? (
             <Image
               src={coverUrl}
@@ -65,9 +66,9 @@ export function ArticleHero({
         </div>
 
         <div className="flex flex-col justify-end">
-          {sourceName ? (
+          {firstPublishYear ? (
             <p className="text-sm uppercase tracking-wide text-accent">
-              {sourceName}
+              {firstPublishYear}
             </p>
           ) : null}
           <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
@@ -75,34 +76,55 @@ export function ArticleHero({
           </h1>
           {authors?.length ? (
             <p className="mt-2 text-sm text-muted-foreground">
-              by {authors.join(", ")}
+              by{" "}
+              {authors.map((author, index) => (
+                <span key={author.slug}>
+                  {index > 0 ? ", " : null}
+                  <Link
+                    href={`/author/${author.slug}`}
+                    className="text-foreground hover:text-accent"
+                  >
+                    {author.name}
+                  </Link>
+                </span>
+              ))}
+            </p>
+          ) : null}
+
+          {description ? (
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground line-clamp-5">
+              {description}
             </p>
           ) : null}
 
           <div className="mt-4 flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <StarRating
+              <ScoreRating
                 value={Number(avgRating) || null}
                 readOnly
                 size="sm"
+                showValue
               />
               <span className="text-sm tabular-nums text-muted-foreground">
-                {formatRating(avgRating)} · {ratingsCount} ratings · {logsCount}{" "}
-                logs
+                avg · {formatRating(avgRating)} · {ratingsCount} ratings ·{" "}
+                {logsCount} logs
               </span>
             </div>
           </div>
 
           <div className="mt-6 flex flex-wrap gap-2">
             <Button asChild>
-              <Link href={`/log/new?url=${encodeURIComponent(url)}`}>
+              <Link href={`/log/new?work=${encodeURIComponent(olWorkKey)}`}>
                 Log this
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <a href={url} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="size-4" />
-                Open original
+              <a
+                href={`https://openlibrary.org/works/${olWorkKey}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open Library
               </a>
             </Button>
             <span className="sr-only">{slug}</span>

@@ -2,25 +2,24 @@ import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 
 import { Markdown } from "@/components/common/markdown";
-import { Spoiler } from "@/components/common/spoiler";
-import { StarRating } from "@/components/common/star-rating";
+import { ScoreRating } from "@/components/common/score-rating";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-export function ReviewCard({
+export function EntryCard({
   id,
+  title,
   bodyMd,
-  hasSpoilers,
   createdAt,
   likesCount,
   rating,
   author,
-  articleTitle,
-  articleSlug,
-  showArticleLink = false,
+  workTitle,
+  workSlug,
+  showWorkLink = false,
 }: {
   id: string;
+  title?: string | null;
   bodyMd: string;
-  hasSpoilers: boolean;
   createdAt: string;
   likesCount?: number;
   rating?: number | string | null;
@@ -29,18 +28,14 @@ export function ReviewCard({
     display_name: string | null;
     avatar_url: string | null;
   };
-  articleTitle?: string;
-  articleSlug?: string;
-  showArticleLink?: boolean;
+  workTitle?: string;
+  workSlug?: string;
+  showWorkLink?: boolean;
 }) {
   const name = author.display_name || author.username;
   const initials = name.slice(0, 2).toUpperCase();
   const ratingNum =
     rating === null || rating === undefined ? null : Number(rating);
-
-  const body = (
-    <Markdown content={bodyMd} className="mt-3" />
-  );
 
   return (
     <article className="border-b border-border/70 py-6 last:border-0">
@@ -71,29 +66,37 @@ export function ReviewCard({
             </span>
           </div>
 
-          {showArticleLink && articleSlug && articleTitle ? (
+          {showWorkLink && workSlug && workTitle ? (
             <p className="mt-1 text-sm text-muted-foreground">
               on{" "}
               <Link
-                href={`/article/${articleSlug}`}
+                href={`/work/${workSlug}`}
                 className="text-foreground hover:text-accent"
               >
-                {articleTitle}
+                {workTitle}
               </Link>
             </p>
           ) : null}
 
           {ratingNum ? (
             <div className="mt-2">
-              <StarRating value={ratingNum} readOnly size="sm" showValue />
+              <ScoreRating value={ratingNum} readOnly size="sm" showValue />
             </div>
           ) : null}
 
-          {hasSpoilers ? <Spoiler className="mt-3">{body}</Spoiler> : body}
+          {title ? (
+            <h3 className="mt-3 font-display text-lg font-semibold tracking-tight">
+              <Link href={`/review/${id}`} className="hover:text-accent">
+                {title}
+              </Link>
+            </h3>
+          ) : null}
+
+          <Markdown content={bodyMd} className="mt-3" />
 
           <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
             <Link href={`/review/${id}`} className="hover:text-accent">
-              View review
+              View entry
             </Link>
             {typeof likesCount === "number" ? (
               <span>{likesCount} likes</span>

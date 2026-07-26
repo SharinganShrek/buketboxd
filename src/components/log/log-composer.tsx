@@ -1,88 +1,100 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { Search, X } from "lucide-react";
 
-import { StarRating } from "@/components/common/star-rating";
+import { ScoreRating } from "@/components/common/score-rating";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createLog } from "@/server/actions/log";
-import { fetchMetadataFromUrl } from "@/server/actions/metadata";
+import {
+  searchWorksAction,
+  type WorkSearchResult,
+} from "@/server/actions/openlibrary";
 
-function todayISODate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-export function LogComposer({ initialUrl = "" }: { initialUrl?: string }) {
+export function LogComposer({
+  initialOlWorkKey = "",
+}: {
+  initialOlWorkKey?: string;
+}) {
   const router = useRouter();
-  const [url, setUrl] = useState(initialUrl);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<WorkSearchResult[]>([]);
+  const [selected, setSelected] = useState<WorkSearchResult | null>(null);
   const [title, setTitle] = useState("");
-  const [authorName, setAuthorName] = useState("");
-  const [sourceName, setSourceName] = useState("");
-  const [coverUrl, setCoverUrl] = useState("");
-  const [readAt, setReadAt] = useState(todayISODate());
   const [rating, setRating] = useState<number | null>(null);
-  const [review, setReview] = useState("");
-  const [hasSpoilers, setHasSpoilers] = useState(false);
-  const [tags, setTags] = useState("");
-  const [readingMinutes, setReadingMinutes] = useState("");
-  const [fetchingMeta, startFetchMeta] = useTransition();
+  const [body, setBody] = useState("");
+  const [searching, startSearch] = useTransition();
   const [submitting, startSubmit] = useTransition();
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function autofill(targetUrl = url) {
-    if (!targetUrl.trim()) {
-      toast.error("Paste an article URL first");
+  function runSearch(value: string) {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+
+    const q = value.trim();
+    if (q.length < 2) {
+      setResults([]);
       return;
     }
 
-    startFetchMeta(async () => {
-      const result = await fetchMetadataFromUrl(targetUrl);
-      if (!result.ok || !result.data) {
-        toast.error(result.error ?? "Could not fetch metadata");
-        return;
-      }
-
-      if (result.data.title) setTitle(result.data.title);
-      if (result.data.sourceName) setSourceName(result.data.sourceName);
-      if (result.data.coverUrl) setCoverUrl(result.data.coverUrl);
-      if (result.data.authorName) setAuthorName(result.data.authorName);
-      toast.success("Metadata loaded");
-    });
+    searchTimer.current = setTimeout(() => {
+      startSearch(async () => {
+        const result = await searchWorksAction(q);
+        if (!result.ok) {
+          toast.error(result.error ?? "Search failed");
+          setResults([]);
+          return;
+        }
+        setResults(result.results);
+      });
+    }, 350);
   }
 
   useEffect(() => {
-    if (initialUrl) {
-      autofill(initialUrl);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on mount with initial URL
-  }, [initialUrl]);
+    if (!initialOlWorkKey) return;
+    startSearch(async () => {
+      const result = await searchWorksAction(initialOlWorkKey);
+      if (result.ok && result.results[0]) {
+        setSelected(result.results[0]);
+        setQuery(result.results[0].title);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate from key once
+  }, [initialOlWorkKey]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, []);
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    startSubmit(async () => {
-      const tagList = tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
+    if (!selected) {
+      toast.error("Select a work from Open Library");
+      return;
+    }
+    if (!rating) {
+      toast.error("Pick a rating out of 10");
+      return;
+    }
+    if (!body.trim()) {
+      toast.error("Write what you thought about the work");
+      return;
+    }
 
+    startSubmit(async () => {
       const result = await createLog({
-        url,
-        title,
-        authorName: authorName || "",
-        sourceName: sourceName || "",
-        coverUrl: coverUrl || "",
-        readAt,
+        olWorkKey: selected.olWorkKey,
+        title: title.trim(),
         rating,
-        review: review || "",
-        hasSpoilers,
-        readingMinutes: readingMinutes
-          ? Number.parseInt(readingMinutes, 10)
-          : null,
-        tags: tagList,
+        body: body.trim(),
       });
 
       if (!result.ok) {
@@ -91,7 +103,7 @@ export function LogComposer({ initialUrl = "" }: { initialUrl?: string }) {
       }
 
       toast.success("Logged!");
-      router.push(`/article/${result.articleSlug}`);
+      router.push(`/work/${result.workSlug}`);
       router.refresh();
     });
   }
@@ -99,134 +111,148 @@ export function LogComposer({ initialUrl = "" }: { initialUrl?: string }) {
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="url">Article URL</Label>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input
-            id="url"
-            type="url"
-            required
-            placeholder="https://…"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onBlur={() => {
-              if (url && !title) autofill(url);
-            }}
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={fetchingMeta}
-            onClick={() => autofill(url)}
-          >
-            {fetchingMeta ? "Fetching…" : "Autofill"}
-          </Button>
-        </div>
+        <Label htmlFor="work-search">Work</Label>
+        {selected ? (
+          <div className="flex gap-3 rounded-xl border border-border bg-surface/40 p-3">
+            <div className="relative aspect-[2/3] w-14 shrink-0 overflow-hidden rounded-md bg-muted">
+              {selected.coverUrl ? (
+                <Image
+                  src={selected.coverUrl}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="56px"
+                  unoptimized
+                />
+              ) : null}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium leading-snug">{selected.title}</p>
+              {selected.authors.length ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {selected.authors.join(", ")}
+                </p>
+              ) : null}
+              {selected.firstPublishYear ? (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {selected.firstPublishYear}
+                </p>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Clear selection"
+              onClick={() => {
+                setSelected(null);
+                setResults([]);
+              }}
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="work-search"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  runSearch(e.target.value);
+                }}
+                placeholder="Search Open Library by title or author…"
+                className="pl-9"
+                autoComplete="off"
+              />
+            </div>
+            {searching ? (
+              <p className="text-sm text-muted-foreground">Searching…</p>
+            ) : null}
+            {results.length > 0 ? (
+              <ul className="max-h-80 overflow-y-auto rounded-xl border border-border bg-surface/40">
+                {results.map((work) => (
+                  <li key={work.olWorkKey}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelected(work);
+                        setQuery(work.title);
+                        setResults([]);
+                      }}
+                      className="flex w-full gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+                    >
+                      <div className="relative aspect-[2/3] w-10 shrink-0 overflow-hidden rounded bg-muted">
+                        {work.coverUrl ? (
+                          <Image
+                            src={work.coverUrl}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                            unoptimized
+                          />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {work.title}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {work.authors.join(", ") || "Unknown author"}
+                          {work.firstPublishYear
+                            ? ` · ${work.firstPublishYear}`
+                            : ""}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </>
+        )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="title">Title</Label>
+        <Label>Rating /10</Label>
+        <ScoreRating value={rating} onChange={setRating} showValue />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="entry-title">
+          Title <span className="text-muted-foreground">(optional)</span>
+        </Label>
         <Input
-          id="title"
-          required
+          id="entry-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Article title"
+          placeholder="A short headline for your entry"
+          maxLength={200}
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="author">Author</Label>
-          <Input
-            id="author"
-            value={authorName}
-            onChange={(e) => setAuthorName(e.target.value)}
-            placeholder="Optional"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="source">Source</Label>
-          <Input
-            id="source"
-            value={sourceName}
-            onChange={(e) => setSourceName(e.target.value)}
-            placeholder="Publication"
-          />
-        </div>
-      </div>
-
       <div className="space-y-2">
-        <Label htmlFor="cover">Cover image URL</Label>
-        <Input
-          id="cover"
-          type="url"
-          value={coverUrl}
-          onChange={(e) => setCoverUrl(e.target.value)}
-          placeholder="https://…"
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="readAt">Read on</Label>
-          <Input
-            id="readAt"
-            type="date"
-            required
-            value={readAt}
-            onChange={(e) => setReadAt(e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="minutes">Reading minutes</Label>
-          <Input
-            id="minutes"
-            type="number"
-            min={1}
-            value={readingMinutes}
-            onChange={(e) => setReadingMinutes(e.target.value)}
-            placeholder="Optional"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Rating</Label>
-        <StarRating value={rating} onChange={setRating} showValue />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="review">Review</Label>
+        <Label htmlFor="body">What did you think?</Label>
         <Textarea
-          id="review"
-          rows={6}
-          value={review}
-          onChange={(e) => setReview(e.target.value)}
-          placeholder="What stayed with you? Markdown supported."
-        />
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={hasSpoilers}
-            onChange={(e) => setHasSpoilers(e.target.checked)}
-            className="size-4 rounded border-border"
-          />
-          Contains spoilers
-        </label>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="tags">Tags</Label>
-        <Input
-          id="tags"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="essay, tech, politics (comma-separated)"
+          id="body"
+          rows={8}
+          required
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Your thoughts on this work… Markdown supported."
         />
       </div>
 
-      <Button type="submit" size="lg" disabled={submitting} className="w-full sm:w-auto">
-        {submitting ? "Saving…" : "Log this read"}
+      <Button
+        type="submit"
+        size="lg"
+        disabled={submitting}
+        className="w-full sm:w-auto"
+      >
+        {submitting ? "Saving…" : "Save entry"}
       </Button>
     </form>
   );

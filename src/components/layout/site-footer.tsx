@@ -16,8 +16,8 @@ export function SiteFooter() {
             Buketboxd
           </p>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Your diary for everything you read — essays, newsletters, papers,
-            and the pieces that stick.
+            Your diary for the works you read — rate them, write about them,
+            and follow fellow readers.
           </p>
         </div>
 

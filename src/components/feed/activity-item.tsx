@@ -2,7 +2,7 @@ import { formatDistanceToNow } from "date-fns";
 import Image from "next/image";
 import Link from "next/link";
 
-import { StarRating } from "@/components/common/star-rating";
+import { ScoreRating } from "@/components/common/score-rating";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatRating } from "@/lib/utils";
 import type { FeedActivity } from "@/server/actions/feed";
@@ -14,11 +14,11 @@ function activityVerb(type: FeedActivity["type"]) {
     case "rated":
       return "rated";
     case "reviewed":
-      return "reviewed";
+      return "wrote about";
     case "followed":
       return "followed someone";
     case "liked_review":
-      return "liked a review";
+      return "liked an entry";
     case "created_list":
       return "created a list";
     default:
@@ -28,7 +28,7 @@ function activityVerb(type: FeedActivity["type"]) {
 
 export function ActivityItem({ activity }: { activity: FeedActivity }) {
   const actor = activity.actor;
-  const article = activity.article;
+  const work = activity.work;
   const name = actor?.display_name || actor?.username || "Someone";
   const initials = name.slice(0, 2).toUpperCase();
   const rating =
@@ -63,14 +63,14 @@ export function ActivityItem({ activity }: { activity: FeedActivity }) {
             <span className="font-medium text-foreground">{name}</span>
           )}{" "}
           {activityVerb(activity.type)}
-          {article ? (
+          {work ? (
             <>
               {" "}
               <Link
-                href={`/article/${article.slug}`}
+                href={`/work/${work.slug}`}
                 className="font-medium text-foreground hover:text-accent"
               >
-                {article.title}
+                {work.title}
               </Link>
             </>
           ) : null}
@@ -84,36 +84,35 @@ export function ActivityItem({ activity }: { activity: FeedActivity }) {
 
         {rating ? (
           <div className="mt-2">
-            <StarRating value={rating} readOnly size="sm" showValue />
+            <ScoreRating value={rating} readOnly size="sm" showValue />
           </div>
         ) : null}
 
-        {article ? (
+        {work ? (
           <Link
-            href={`/article/${article.slug}`}
+            href={`/work/${work.slug}`}
             className="mt-3 flex gap-3 rounded-lg border border-border/60 bg-surface/40 p-3 transition-colors hover:border-accent/40"
           >
-            {article.cover_url ? (
-              <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-muted">
+            {work.cover_url ? (
+              <div className="relative aspect-[2/3] w-12 shrink-0 overflow-hidden rounded-md bg-muted">
                 <Image
-                  src={article.cover_url}
+                  src={work.cover_url}
                   alt=""
                   fill
                   className="object-cover"
-                  sizes="56px"
+                  sizes="48px"
                   unoptimized
                 />
               </div>
             ) : (
-              <div className="size-14 shrink-0 rounded-md bg-muted" />
+              <div className="aspect-[2/3] w-12 shrink-0 rounded-md bg-muted" />
             )}
             <div className="min-w-0">
               <p className="truncate font-medium text-foreground">
-                {article.title}
+                {work.title}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {formatRating(article.avg_rating)} avg · {article.logs_count}{" "}
-                logs
+                {formatRating(work.avg_rating)} avg · {work.logs_count} logs
               </p>
             </div>
           </Link>
@@ -124,7 +123,7 @@ export function ActivityItem({ activity }: { activity: FeedActivity }) {
             href={`/review/${activity.entity_id}`}
             className="mt-2 inline-block text-sm text-accent hover:underline"
           >
-            Read review
+            Read entry
           </Link>
         ) : null}
       </div>

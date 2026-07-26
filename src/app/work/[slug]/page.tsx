@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { MessageSquareText } from "lucide-react";
 
-import { ArticleHero } from "@/components/article/article-hero";
-import { ReviewCard } from "@/components/article/review-card";
 import { EmptyState } from "@/components/common/empty-state";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { EntryCard } from "@/components/work/entry-card";
+import { WorkHero } from "@/components/work/work-hero";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/server/actions/profile";
-import { MessageSquareText } from "lucide-react";
 
 export async function generateMetadata({
   params,
@@ -19,15 +19,15 @@ export async function generateMetadata({
   const { slug } = await params;
   const supabase = await createClient();
   const { data } = await supabase
-    .from("articles")
+    .from("works")
     .select("title")
     .eq("slug", slug)
     .maybeSingle();
 
-  return { title: data?.title ?? "Article" };
+  return { title: data?.title ?? "Work" };
 }
 
-export default async function ArticlePage({
+export default async function WorkPage({
   params,
   searchParams,
 }: {
@@ -39,46 +39,45 @@ export default async function ArticlePage({
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
-  const { data: article } = await supabase
-    .from("articles")
+  const { data: work } = await supabase
+    .from("works")
     .select(
       `
       *,
-      source:sources!articles_source_id_fkey ( name ),
-      authors:article_authors (
+      authors:work_authors (
         position,
-        author:authors ( name )
+        author:authors ( name, slug )
       )
     `,
     )
     .eq("slug", slug)
     .maybeSingle();
 
-  if (!article) notFound();
+  if (!work) notFound();
 
-  let reviewsQuery = supabase
+  let entriesQuery = supabase
     .from("reviews")
     .select(
       `
       id,
+      title,
       body_md,
-      has_spoilers,
       likes_count,
       created_at,
       user:profiles!reviews_user_id_fkey ( username, display_name, avatar_url ),
       log:logs!logs_review_id_fkey ( rating )
     `,
     )
-    .eq("article_id", article.id);
+    .eq("work_id", work.id);
 
   if (sort === "popular") {
-    reviewsQuery = reviewsQuery.order("likes_count", { ascending: false });
+    entriesQuery = entriesQuery.order("likes_count", { ascending: false });
   } else {
-    reviewsQuery = reviewsQuery.order("created_at", { ascending: false });
+    entriesQuery = entriesQuery.order("created_at", { ascending: false });
   }
 
-  const [{ data: reviews }, { data: readers }] = await Promise.all([
-    reviewsQuery.limit(40),
+  const [{ data: entries }, { data: readers }] = await Promise.all([
+    entriesQuery.limit(40),
     supabase
       .from("logs")
       .select(
@@ -88,24 +87,28 @@ export default async function ArticlePage({
         user:profiles!logs_user_id_fkey ( username, display_name, avatar_url )
       `,
       )
-      .eq("article_id", article.id)
+      .eq("work_id", work.id)
       .order("created_at", { ascending: false })
       .limit(24),
   ]);
 
-  const source = Array.isArray(article.source)
-    ? article.source[0]
-    : article.source;
-  const authorNames = (article.authors ?? [])
+  const authors = (work.authors ?? [])
     .sort(
       (a: { position: number }, b: { position: number }) =>
         a.position - b.position,
     )
-    .map((row: { author: { name: string } | { name: string }[] | null }) => {
-      const author = Array.isArray(row.author) ? row.author[0] : row.author;
-      return author?.name;
-    })
-    .filter(Boolean) as string[];
+    .map(
+      (row: {
+        author:
+          | { name: string; slug: string }
+          | { name: string; slug: string }[]
+          | null;
+      }) => {
+        const author = Array.isArray(row.author) ? row.author[0] : row.author;
+        return author ? { name: author.name, slug: author.slug } : null;
+      },
+    )
+    .filter(Boolean) as { name: string; slug: string }[];
 
   return (
     <div className="flex min-h-full flex-col">
@@ -122,16 +125,17 @@ export default async function ArticlePage({
       />
 
       <main className="mx-auto w-full max-w-6xl flex-1 space-y-12 px-4 py-8 sm:px-6">
-        <ArticleHero
-          title={article.title}
-          slug={article.slug}
-          url={article.url}
-          coverUrl={article.cover_url}
-          avgRating={article.avg_rating}
-          ratingsCount={article.ratings_count}
-          logsCount={article.logs_count}
-          sourceName={source?.name}
-          authors={authorNames}
+        <WorkHero
+          title={work.title}
+          slug={work.slug}
+          olWorkKey={work.ol_work_key}
+          coverUrl={work.cover_url}
+          description={work.description}
+          avgRating={work.avg_rating}
+          ratingsCount={work.ratings_count}
+          logsCount={work.logs_count}
+          firstPublishYear={work.first_publish_year}
+          authors={authors}
         />
 
         <section>
@@ -176,11 +180,11 @@ export default async function ArticlePage({
         <section>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <h2 className="font-display text-xl font-semibold tracking-tight">
-              Reviews
+              Entries
             </h2>
             <div className="flex gap-2 text-sm">
               <Link
-                href={`/article/${slug}?sort=recent`}
+                href={`/work/${slug}?sort=recent`}
                 className={
                   sort !== "popular"
                     ? "text-accent"
@@ -191,7 +195,7 @@ export default async function ArticlePage({
               </Link>
               <span className="text-border">|</span>
               <Link
-                href={`/article/${slug}?sort=popular`}
+                href={`/work/${slug}?sort=popular`}
                 className={
                   sort === "popular"
                     ? "text-accent"
@@ -203,31 +207,31 @@ export default async function ArticlePage({
             </div>
           </div>
 
-          {(reviews ?? []).length === 0 ? (
+          {(entries ?? []).length === 0 ? (
             <EmptyState
               icon={MessageSquareText}
-              title="No reviews yet"
-              description="Be the first to write about this piece."
+              title="No entries yet"
+              description="Be the first to write about this work."
               className="py-12"
             />
           ) : (
             <div className="mt-2">
-              {(reviews ?? []).map((review) => {
-                const user = Array.isArray(review.user)
-                  ? review.user[0]
-                  : review.user;
-                const log = Array.isArray(review.log)
-                  ? review.log[0]
-                  : review.log;
+              {(entries ?? []).map((entry) => {
+                const user = Array.isArray(entry.user)
+                  ? entry.user[0]
+                  : entry.user;
+                const log = Array.isArray(entry.log)
+                  ? entry.log[0]
+                  : entry.log;
                 if (!user) return null;
                 return (
-                  <ReviewCard
-                    key={review.id}
-                    id={review.id}
-                    bodyMd={review.body_md}
-                    hasSpoilers={review.has_spoilers}
-                    createdAt={review.created_at}
-                    likesCount={review.likes_count}
+                  <EntryCard
+                    key={entry.id}
+                    id={entry.id}
+                    title={entry.title}
+                    bodyMd={entry.body_md}
+                    createdAt={entry.created_at}
+                    likesCount={entry.likes_count}
                     rating={log?.rating}
                     author={user}
                   />

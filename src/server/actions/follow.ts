@@ -49,7 +49,7 @@ export async function followUser(userId: string) {
     type: "followed",
     entity_type: "profile",
     entity_id: userId,
-    article_id: null,
+    work_id: null,
     meta: { following_id: userId },
   });
 
