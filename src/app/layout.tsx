@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     template: "%s · Buketboxd",
   },
   description:
-    "Your diary for everything you read — essays, newsletters, papers, and the pieces that stick.",
+    "Your diary for the works you read — rate them, write about them, and follow fellow readers.",
 };
 
 export default function RootLayout({
